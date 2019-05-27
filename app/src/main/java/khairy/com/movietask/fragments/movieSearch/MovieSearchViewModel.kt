@@ -1,6 +1,7 @@
-package khairy.com.movietask.fragments
+package khairy.com.movietask.fragments.movieSearch
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -22,16 +23,24 @@ class MovieSearchViewModel(app: Application) : AndroidViewModel(app){
 
     private val jobs: MutableList<Job> = mutableListOf()
 
-    private val liveResult: MutableLiveData<Either<Result.Error, List<MoviesResult>>> = MutableLiveData()
+    private val liveLoading: MutableLiveData<Boolean> = MutableLiveData()
 
-    fun getmovieList(): LiveData<Either<Result.Error, List<MoviesResult>>> {
+    private val liveResult: MutableLiveData<Either<Result.Error, SearchData>> = MutableLiveData()
+
+    fun getmovieList(): LiveData<Either<Result.Error, SearchData>> {
         return liveResult
     }
 
-    fun getSearchData() {
+    fun getLoading(): LiveData<Boolean> = liveLoading
+
+    private fun postLoading(isLoading: Boolean): Unit = liveLoading.postValue(isLoading)
+
+
+    fun getSearchData( monieName: String , page: Int) {
         jobs += GlobalScope.launch(Dispatchers.IO) {
+            postLoading(true)
             val r: Either<Result.Error, Result.Success<SearchData>> =
-                callAPI { WebAccess.movieApi.getPartsAsync() }
+                callAPI { WebAccess.movieApi.getPartsAsync(monieName,page) }
             ListResult(r)
         }
     }
@@ -47,10 +56,12 @@ class MovieSearchViewModel(app: Application) : AndroidViewModel(app){
     }
 
     private fun rightSide(r: Result.Success<SearchData>) {
-        liveResult.postValue(Either.right(r.t.results))
+        postLoading(false)
+        liveResult.postValue(Either.right(r.t))
     }
 
     private fun leftSide(l: Result.Error) {
+        postLoading(false)
         liveResult.postValue(l.left())
     }
 
